@@ -23,8 +23,53 @@ func (l *Lexer) NextToken() token.Token {
 	l.skipWhiteSpaces()
 
 	switch l.char {
+	case '=':
+		if l.peekChar() == '=' {
+			ch := l.char
+			l.readChar()
+			tok = newToken(token.ASSIGN, ch)
+		}
 	case '+':
 		tok = newToken(token.PLUS, l.char)
+	case '-':
+		tok = newToken(token.MINUS, l.char)
+	case '/':
+		tok = newToken(token.DIVISION, l.char)
+	case '*':
+		tok = newToken(token.MULTIPLY, l.char)
+	case '(':
+		tok = newToken(token.LPAREN, l.char)
+	case ')':
+		tok = newToken(token.RPAREN, l.char)
+	case '{':
+		tok = newToken(token.LBRACKET, l.char)
+	case '}':
+		tok = newToken(token.RBRACKET, l.char)
+	case '[':
+		tok = newToken(token.LSQRBRACKET, l.char)
+	case ']':
+		tok = newToken(token.RSQRBRACKET, l.char)
+	case ',':
+		tok = newToken(token.COMMA, l.char)
+	case ';':
+		tok = newToken(token.SEMICOLON, l.char)
+	case '>':
+		if l.peekChar() == '=' {
+			l.readChar()
+			tok = newToken(token.GT, l.char)
+		} else {
+			l.readChar()
+			tok = newToken(token.GE, l.char)
+		}
+	case '<':
+		if l.peekChar() == '=' {
+			l.readChar()
+			tok = newToken(token.LT, l.char)
+		} else {
+			l.readChar()
+			tok = newToken(token.LE, l.char)
+		}
+
 	case 0:
 		tok.Literal = ""
 		tok.Type = token.EOF
