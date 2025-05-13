@@ -15,13 +15,17 @@ func main() {
 	}
 	lxr := lexer.New(string(file))
 
-	// tokens := lxr.Tokenize()
 	p := parser.New(lxr)
 	program := p.ParseProgram()
 
-	fmt.Println(program)
+	// Check for parsing errors
+	if len(p.Errors()) > 0 {
+		fmt.Printf("Parser has %d errors:\n", len(p.Errors()))
+		for _, msg := range p.Errors() {
+			fmt.Printf("\t%s\n", msg)
+		}
+		return
+	}
 
-	// for _, tok := range tokens {
-	// 	fmt.Printf("Token %s\n", tok.Type)
-	// }
+	fmt.Println(program)
 }

@@ -27,49 +27,49 @@ func (l *Lexer) NextToken() token.Token {
 		if l.peekChar() == '=' {
 			ch := l.char
 			l.readChar()
-			tok = newToken(token.ASSIGN, ch)
+			literal := string(ch) + string(l.char)
+			tok = token.Token{Type: token.EQ, Literal: literal}
+		} else {
+			tok = newToken(token.ASSIGN, l.char)
 		}
 	case '+':
 		tok = newToken(token.PLUS, l.char)
 	case '-':
 		tok = newToken(token.MINUS, l.char)
+	case '!':
+		if l.peekChar() == '=' {
+			ch := l.char
+			l.readChar()
+			literal := string(ch) + string(l.char)
+			tok = token.Token{Type: token.NOT_EQ, Literal: literal}
+		} else {
+			tok = newToken(token.BANG, l.char)
+		}
 	case '/':
-		tok = newToken(token.DIVISION, l.char)
+		tok = newToken(token.SLASH, l.char)
 	case '*':
-		tok = newToken(token.MULTIPLY, l.char)
+		tok = newToken(token.ASTERISK, l.char)
+	case '<':
+		tok = newToken(token.LT, l.char)
+	case '>':
+		tok = newToken(token.GT, l.char)
+	case ',':
+		tok = newToken(token.COMMA, l.char)
+	case '{':
+		tok = newToken(token.LBRACE, l.char)
+	case '}':
+		tok = newToken(token.RBRACE, l.char)
 	case '(':
 		tok = newToken(token.LPAREN, l.char)
 	case ')':
 		tok = newToken(token.RPAREN, l.char)
-	case '{':
-		tok = newToken(token.LBRACKET, l.char)
-	case '}':
-		tok = newToken(token.RBRACKET, l.char)
+	case '"':
+		tok.Type = token.STRING
+		tok.Literal = l.readString()
 	case '[':
-		tok = newToken(token.LSQRBRACKET, l.char)
+		tok = newToken(token.LBRACKET, l.char)
 	case ']':
-		tok = newToken(token.RSQRBRACKET, l.char)
-	case ',':
-		tok = newToken(token.COMMA, l.char)
-	case ';':
-		tok = newToken(token.SEMICOLON, l.char)
-	case '>':
-		if l.peekChar() == '=' {
-			l.readChar()
-			tok = newToken(token.GT, l.char)
-		} else {
-			l.readChar()
-			tok = newToken(token.GE, l.char)
-		}
-	case '<':
-		if l.peekChar() == '=' {
-			l.readChar()
-			tok = newToken(token.LT, l.char)
-		} else {
-			l.readChar()
-			tok = newToken(token.LE, l.char)
-		}
-
+		tok = newToken(token.RBRACKET, l.char)
 	case 0:
 		tok.Literal = ""
 		tok.Type = token.EOF
@@ -79,13 +79,12 @@ func (l *Lexer) NextToken() token.Token {
 			tok.Type = token.LookupIdent(tok.Literal)
 			return tok
 		} else if isDigit(l.char) {
-			tok.Literal = l.readNumber()
 			tok.Type = token.INT
+			tok.Literal = l.readNumber()
 			return tok
 		} else {
-			newToken(token.ILLEGAL, l.char)
+			tok = newToken(token.ILLEGAL, l.char)
 		}
-
 	}
 
 	l.readChar()

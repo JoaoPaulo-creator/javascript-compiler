@@ -6,43 +6,38 @@ const (
 	ILLEGAL = "ILLEGAL" // sera utilizado/chamado quando algum caracter ou algo que nao tenha sido identificado seja utilizado
 	EOF     = "EOF"     // end of file
 
-	// operators
-	ASSIGN   = "ASSIGN"
-	BANG     = "BANG"
-	PLUS     = "PLUS"
-	MINUS    = "MINUS"
-	MULTIPLY = "MULTIPLY"
-	DIVISION = "DIVISION"
-	INT      = "INT"
-	LT       = "LESS_THAN"
-	GT       = "GREATER_THAN"
-	GE       = "GREATER_EQUAL"
-	LE       = "LESS_EQUAL"
-	NOT_EQ   = "NOT_EQUALS"
-	EQ       = "EQUALS"
-	IDENT    = "IDENT"
-	STRING   = "STRING"
+	// identificadores e literals
+	IDENT  = "IDENT"
+	INT    = "INT"
+	STRING = "STRING"
 
-	// delimiters
+	// operafores
+	ASSIGN   = "="
+	PLUS     = "+"
+	MINUS    = "-"
+	BANG     = "!"
+	ASTERISK = "*"
+	SLASH    = "/"
 
-	// ,
-	COMMA = "COMMA"
-	// ;
-	SEMICOLON = "SEMICOLON"
-	// :
-	COLON  = "COLON"
-	LPAREN = "LPAREN"
-	RPAREN = "RPAREN"
-	// {
-	LBRACKET = "LBRACKET"
-	// }
-	RBRACKET    = "RBRACKET"
-	LSQRBRACKET = "LSQRBRACKET"
-	RSQRBRACKET = "RSQRBRACKET"
+	LT = "<"
+	GT = ">"
 
-	//keywords
+	EQ     = "=="
+	NOT_EQ = "!="
+
+	// delimitadores
+	COMMA = ","
+	COLON = ":"
+
+	LPAREN   = "("
+	RPAREN   = ")"
+	LBRACE   = "{"
+	RBRACE   = "}"
+	LBRACKET = "["
+	RBRACKET = "]"
+
+	// keywords
 	FUNCTION = "FUNCTION"
-	VAR      = "VAR"
 	LET      = "LET"
 	CONST    = "CONST"
 	TRUE     = "TRUE"
