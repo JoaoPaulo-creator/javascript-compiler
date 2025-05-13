@@ -128,30 +128,27 @@ func (bs *BlockStatement) String() string {
 }
 
 // IfStatement represents an if statement
-type IfStatement struct {
-	Token       token.Token // the IF token
+type IfExpression struct {
+	Token       token.Token
 	Condition   Expression
 	Consequence *BlockStatement
 	Alternative *BlockStatement
 }
 
-func (is *IfStatement) statementNode()       {}
-func (is *IfStatement) TokenLiteral() string { return is.Token.Literal }
-func (is *IfStatement) String() string {
+func (ie *IfExpression) expressionNode()      {}
+func (ie *IfExpression) TokenLiteral() string { return ie.Token.Literal }
+func (ie *IfExpression) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("if")
-	out.WriteString("(")
-	out.WriteString(is.Condition.String())
-	out.WriteString(")")
+	out.WriteString(ie.Condition.String())
 	out.WriteString(" ")
-	out.WriteString(is.Consequence.String())
+	out.WriteString(ie.Consequence.String())
 
-	if is.Alternative != nil {
+	if ie.Alternative != nil {
 		out.WriteString("else ")
-		out.WriteString(is.Alternative.String())
+		out.WriteString(ie.Alternative.String())
 	}
-
 	return out.String()
 }
 
@@ -355,7 +352,7 @@ func ConsoleLogAST(node Node, indent string) {
 		for _, stmt := range node.Statements {
 			ConsoleLogAST(stmt, indent+"  ")
 		}
-	case *IfStatement:
+	case *IfExpression:
 		fmt.Printf("%sIfStatement:\n", indent)
 		fmt.Printf("%sCondition:\n", indent)
 		ConsoleLogAST(node.Condition, indent+"  ")
@@ -410,6 +407,28 @@ func ConsoleLogAST(node Node, indent string) {
 	}
 }
 
+type LetStatement struct {
+	Token token.Token
+	Name  *Identifier
+	Value Expression
+}
+
+func (ls *LetStatement) statementNode()       {}
+func (ls *LetStatement) TokenLiteral() string { return ls.Token.Literal }
+func (ls *LetStatement) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(ls.TokenLiteral() + " ")
+	out.WriteString(ls.Name.String())
+	out.WriteString(" = ")
+
+	if ls.Value != nil {
+		out.WriteString(ls.Value.String())
+	}
+	out.WriteString(";")
+	return out.String()
+}
+
 // AssignmentExpression represents an assignment
 type AssignmentExpression struct {
 	Token token.Token // the = token
@@ -435,3 +454,46 @@ type EmptyExpression struct {
 func (ee *EmptyExpression) expressionNode()      {}
 func (ee *EmptyExpression) TokenLiteral() string { return ee.Token.Literal }
 func (ee *EmptyExpression) String() string       { return "" }
+
+type ArrayLiteral struct {
+	Token    token.Token
+	Elements []Expression
+}
+
+func (al *ArrayLiteral) expressionNode()      {}
+func (al *ArrayLiteral) TokenLiteral() string { return al.Token.Literal }
+func (al *ArrayLiteral) String() string {
+	var out bytes.Buffer
+
+	elements := []string{}
+
+	for _, el := range al.Elements {
+		elements = append(elements, el.String())
+	}
+
+	out.WriteString("[")
+	out.WriteString(strings.Join(elements, ", "))
+	out.WriteString("]")
+	return out.String()
+}
+
+type HashLiteral struct {
+	Token token.Token
+	Pairs map[Expression]Expression
+}
+
+func (hl *HashLiteral) expressionNode()      {}
+func (hl *HashLiteral) TokenLiteral() string { return hl.Token.Literal }
+func (hl *HashLiteral) String() string {
+	var out bytes.Buffer
+
+	pairs := []string{}
+	for key, value := range hl.Pairs {
+		pairs = append(pairs, key.String()+":"+value.String())
+	}
+
+	out.WriteString("{")
+	out.WriteString(strings.Join(pairs, ""))
+	out.WriteString("}")
+	return out.String()
+}

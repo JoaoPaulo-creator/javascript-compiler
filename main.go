@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"js-compiler/lexer"
+	"js-compiler/parser"
 	"os"
 )
 
@@ -14,8 +15,13 @@ func main() {
 	}
 	lxr := lexer.New(string(file))
 
-	tokens := lxr.Tokenize()
-	for _, tok := range tokens {
-		fmt.Printf("Token %s\n", tok.Type)
-	}
+	// tokens := lxr.Tokenize()
+	p := parser.New(lxr)
+	program := p.ParseProgram()
+
+	fmt.Println(program)
+
+	// for _, tok := range tokens {
+	// 	fmt.Printf("Token %s\n", tok.Type)
+	// }
 }

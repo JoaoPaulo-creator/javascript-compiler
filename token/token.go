@@ -8,6 +8,7 @@ const (
 
 	// operators
 	ASSIGN   = "ASSIGN"
+	BANG     = "BANG"
 	PLUS     = "PLUS"
 	MINUS    = "MINUS"
 	MULTIPLY = "MULTIPLY"
@@ -20,13 +21,21 @@ const (
 	NOT_EQ   = "NOT_EQUALS"
 	EQ       = "EQUALS"
 	IDENT    = "IDENT"
+	STRING   = "STRING"
 
 	// delimiters
-	COMMA       = "COMMA"
-	SEMICOLON   = "SEMICOLON"
-	LPAREN      = "LPAREN"
-	RPAREN      = "RPAREN"
-	LBRACKET    = "LBRACKET"
+
+	// ,
+	COMMA = "COMMA"
+	// ;
+	SEMICOLON = "SEMICOLON"
+	// :
+	COLON  = "COLON"
+	LPAREN = "LPAREN"
+	RPAREN = "RPAREN"
+	// {
+	LBRACKET = "LBRACKET"
+	// }
 	RBRACKET    = "RBRACKET"
 	LSQRBRACKET = "LSQRBRACKET"
 	RSQRBRACKET = "RSQRBRACKET"
