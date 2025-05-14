@@ -26,6 +26,7 @@ var precedences = map[token.TokenType]int{
 	token.LT:        LESSGREATER,
 	token.GT:        LESSGREATER,
 	token.PLUS:      SUM,
+	token.DOT:       CALL,
 	token.INCREMENT: CALL,
 	token.DECREMENT: CALL,
 	token.MINUS:     SUM,
@@ -107,6 +108,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.GT, p.parseInfixExpression)
 	p.registerInfix(token.LBRACKET, p.parseIndexExpression)
 	p.registerInfix(token.LPAREN, p.parseCallExpression)
+	p.registerInfix(token.DOT, p.parseMemberExpression)
 
 	p.nextToken()
 	p.nextToken()
@@ -456,6 +458,19 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	exp := &ast.CallExpression{Token: p.curToken, Function: function}
 	exp.Arguments = p.parseExpressionList(token.RPAREN)
 	return exp
+}
+
+func (p *Parser) parseMemberExpression(left ast.Expression) ast.Expression {
+	expr := &ast.MemberExpression{
+		Token:  p.curToken, // the DOT
+		Object: left,
+	}
+	// consume '.' → next token is the property name
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+	expr.Property = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	return expr
 }
 
 func (p *Parser) parseCallAguments() []ast.Expression {

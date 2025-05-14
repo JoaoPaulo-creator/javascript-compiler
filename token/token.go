@@ -10,6 +10,7 @@ const (
 	IDENT  = "IDENT"
 	INT    = "INT"
 	STRING = "STRING"
+	DOT    = "DOT"
 
 	// operafores
 	ASSIGN    = "="
@@ -20,16 +21,13 @@ const (
 	BANG      = "!"
 	ASTERISK  = "*"
 	SLASH     = "/"
-
-	LT = "<"
-	GT = ">"
-
-	EQ     = "=="
-	NOT_EQ = "!="
+	LT        = "<"
+	GT        = ">"
+	EQ        = "=="
+	NOT_EQ    = "!="
 
 	// delimitadores
-	COMMA = ","
-
+	COMMA    = ","
 	LPAREN   = "("
 	RPAREN   = ")"
 	LBRACE   = "{"

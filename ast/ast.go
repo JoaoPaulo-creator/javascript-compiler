@@ -55,9 +55,9 @@ func (rs *ReturnStatement) String() string {
 	out.WriteString(rs.TokenLiteral() + " ")
 	if rs.ReturnValue != nil {
 		out.WriteString(rs.ReturnValue.String())
+		out.WriteString(";")
 	}
 
-	out.WriteString(rs.TokenLiteral() + " ; ")
 	return out.String()
 }
 
@@ -67,8 +67,6 @@ func (es *ExpressionStatement) String() string {
 	}
 	return ""
 }
-
-func (i *Identifier) String() string { return i.Value }
 
 type ReturnStatement struct {
 	Token       token.Token
@@ -96,6 +94,7 @@ func (ls *LetStatement) String() string {
 	if ls.Value != nil {
 		out.WriteString(ls.Value.String())
 	}
+
 	out.WriteString(";")
 	return out.String()
 }
@@ -107,6 +106,7 @@ type Identifier struct {
 
 func (i *Identifier) expressionNode()      {}
 func (i *Identifier) TokenLiteral() string { return i.Token.Literal }
+func (i *Identifier) String() string       { return i.Value }
 
 type IntegerLiteral struct {
 	Token token.Token
@@ -128,10 +128,8 @@ func (pe *PrefixExpression) TokenLiteral() string { return pe.Token.Literal }
 func (pe *PrefixExpression) String() string {
 	var out bytes.Buffer
 
-	out.WriteString("(")
 	out.WriteString(pe.Operator)
 	out.WriteString(pe.Right.String())
-	out.WriteString(")")
 
 	return out.String()
 }
@@ -187,11 +185,15 @@ func (ie *IfExpression) String() string {
 	out.WriteString("if")
 	out.WriteString(ie.Condition.String())
 	out.WriteString(" ")
+	out.WriteString("{")
 	out.WriteString(ie.Consequence.String())
+	out.WriteString("}")
 
 	if ie.Alternative != nil {
 		out.WriteString("else ")
-		out.WriteString(ie.Alternative.String())
+		out.WriteString("{")
+		out.WriteString(ie.Alternative.String() + "\n")
+		out.WriteString("}")
 	}
 	return out.String()
 }
@@ -238,10 +240,32 @@ func (fl *FunctionLiteral) String() string {
 	}
 
 	out.WriteString(fl.TokenLiteral())
+	out.WriteString(" ")
+	out.WriteString(fl.Name.String())
 	out.WriteString("(")
 	out.WriteString(strings.Join(params, ", "))
 	out.WriteString(") ")
+	out.WriteString("{")
 	out.WriteString(fl.Body.String())
+	out.WriteString("} ")
+	return out.String()
+}
+
+type MemberExpression struct {
+	Token    token.Token // the . token
+	Object   Expression
+	Property *Identifier
+}
+
+func (ms *MemberExpression) expressionNode()      {}
+func (ms *MemberExpression) TokenLiteral() string { return ms.Token.Literal }
+func (ms *MemberExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(ms.Object.String())
+	out.WriteString(".")
+	out.WriteString(ms.Property.String())
+	out.WriteString("")
 
 	return out.String()
 }
@@ -259,8 +283,9 @@ func (ws *WhileStatement) String() string {
 
 	out.WriteString("while")
 	out.WriteString(ws.Condition.String())
-	out.WriteString(" ")
+	out.WriteString("{")
 	out.WriteString(ws.Body.String())
+	out.WriteString("}")
 
 	return out.String()
 }
@@ -331,11 +356,11 @@ func (ie *IndexExpression) TokenLiteral() string { return ie.Token.Literal }
 func (ie *IndexExpression) String() string {
 	var out bytes.Buffer
 
-	out.WriteString("(")
+	// out.WriteString("(")
 	out.WriteString(ie.Left.String())
 	out.WriteString("[")
 	out.WriteString(ie.Index.String())
-	out.WriteString("])")
+	out.WriteString("]")
 	return out.String()
 }
 
