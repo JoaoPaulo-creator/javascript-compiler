@@ -12,12 +12,14 @@ const (
 	STRING = "STRING"
 
 	// operafores
-	ASSIGN   = "="
-	PLUS     = "+"
-	MINUS    = "-"
-	BANG     = "!"
-	ASTERISK = "*"
-	SLASH    = "/"
+	ASSIGN    = "="
+	PLUS      = "+"
+	INCREMENT = "++"
+	MINUS     = "-"
+	DECREMENT = "--"
+	BANG      = "!"
+	ASTERISK  = "*"
+	SLASH     = "/"
 
 	LT = "<"
 	GT = ">"
@@ -27,7 +29,6 @@ const (
 
 	// delimitadores
 	COMMA = ","
-	COLON = ":"
 
 	LPAREN   = "("
 	RPAREN   = ")"
@@ -44,6 +45,7 @@ const (
 	FALSE    = "FALSE"
 	IF       = "IF"
 	ELSE     = "ELSE"
+	WHILE    = "WHILE"
 	RETURN   = "RETURN"
 )
 
@@ -58,6 +60,7 @@ var keywords = map[string]TokenType{
 	"const":    CONST,
 	"if":       IF,
 	"else":     ELSE,
+	"while":    WHILE,
 	"return":   RETURN,
 }
 

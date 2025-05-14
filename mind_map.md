@@ -20,3 +20,28 @@ lexical analysis, but a lot of helper functions should be written/created to per
 
 
 ... for now let's build the function NewToken, to start the tokenization
+
+
+```js
+
+const list = [1, 2, 3, 4]
+function twoSum(arr, target) {
+        let left = 0
+        let right = arr.length
+
+        while (left < right) {
+                let sum = arr[left] + arr[right]
+                if (sum == target) {
+                       return sum 
+                } else {
+                        left++
+                        right--
+               }
+        }
+
+
+        return 0
+}
+```
+
+
