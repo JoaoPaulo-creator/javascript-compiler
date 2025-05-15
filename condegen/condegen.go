@@ -68,6 +68,7 @@ func (g *Generator) Generate(program *ast.Program) (*ir.Module, error) {
 			if funcLit, ok := exprStmt.Expression.(*ast.FunctionLiteral); ok {
 				_, err := g.generateExpression(funcLit)
 				if err != nil {
+					fmt.Println("here")
 					return nil, fmt.Errorf("error processing function declaration %d: %w", i, err)
 				}
 			}
@@ -172,8 +173,8 @@ func (c *Context) Lookup(name string) (value.Value, bool) {
 
 func (g *Generator) generateStatement(stmt ast.Statement) (value.Value, error) {
 	switch stmt := stmt.(type) {
-	// case *ast.LetStatement:
-	// 	return g.generateVarStatement(stmt)
+	case *ast.LetStatement:
+		return g.generateLetStatement(stmt)
 	// case *ast.ReturnStatement:
 	// 	return g.generateReturnStatement(stmt)
 	// case *ast.ExpressionStatement:
@@ -194,6 +195,68 @@ func (g *Generator) generateStatement(stmt ast.Statement) (value.Value, error) {
 	}
 }
 
+func (g *Generator) generateLetStatement(stmt *ast.LetStatement) (value.Value, error) {
+	if g.context.currentFunction == nil {
+		var initFunc *ir.Func
+		var initBlock *ir.Block
+
+		for _, fn := range g.module.Funcs {
+			if fn.Name() == "global_init" {
+				initFunc = fn
+				break
+			}
+		}
+
+		if initFunc == nil {
+			initFunc = g.module.NewFunc("global_init", types.Void)
+			initBlock = initFunc.NewBlock("entry")
+			initBlock.NewRet(nil)
+		} else {
+			if len(initFunc.Blocks) > 0 {
+				initBlock = initFunc.Blocks[0]
+			} else {
+				initBlock = initFunc.NewBlock("entry")
+				initBlock.NewRet(nil)
+			}
+		}
+
+		val, err := g.generateExpression(stmt.Value)
+		if err != nil {
+			return nil, err
+		}
+
+		if funcVal, ok := val.(*ir.Func); ok {
+			g.context.namedValues[stmt.Name.Value] = funcVal
+			if funcVal.Name() != stmt.Name.Value && len(funcVal.Blocks) == 0 {
+				funcVal.SetName(stmt.Name.Value)
+			}
+			return funcVal, nil
+		} else {
+			global := g.module.NewGlobal(stmt.Name.Value, val.Type())
+			global.Init = constant.NewZeroInitializer(val.Type())
+			initBlock.NewStore(val, global)
+			g.context.namedValues[stmt.Name.Value] = global
+			return global, nil
+		}
+	}
+
+	val, err := g.generateExpression(stmt.Value)
+	if err != nil {
+		return nil, err
+	}
+
+	entryBlock := g.context.currentFunction.Blocks[0]
+	allocaInst := entryBlock.NewAlloca(val.Type())
+	if len(entryBlock.Insts) > 1 {
+		entryBlock.Insts = append([]ir.Instruction{allocaInst}, entryBlock.Insts[:len(entryBlock.Insts)-1]...)
+	}
+
+	currentBlock := g.context.currentFunction.Blocks[len(g.context.currentFunction.Blocks)-1]
+	currentBlock.NewStore(val, allocaInst)
+	g.context.namedValues[stmt.Name.Value] = allocaInst
+	return allocaInst, nil
+}
+
 func (g *Generator) generateExpression(expr ast.Expression) (value.Value, error) {
 	g.debugExpression(expr)
 	if expr == nil {
@@ -205,8 +268,8 @@ func (g *Generator) generateExpression(expr ast.Expression) (value.Value, error)
 		return g.generateIdentifier(expr)
 	case *ast.IntegerLiteral:
 		return g.generateIntegerLiteral(expr)
-	// case *ast.StringLiteral:
-	// 	return g.generateStringLiteral(expr)
+	case *ast.StringLiteral:
+		return g.generateStringLiteral(expr)
 	// case *ast.PrefixExpression:
 	// 	return g.generatePrefixExpression(expr)
 	// case *ast.InfixExpression:

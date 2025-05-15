@@ -33,7 +33,7 @@ func main() {
 	// code generationr
 	ir, err := codegen.CompileToLLVM(program)
 	if err != nil {
-		fmt.Errorf("code generation error: %v", err)
+		fmt.Printf("code generation error: %v", err)
 		os.Exit(1)
 	}
 
