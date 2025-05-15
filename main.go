@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	codegen "js-compiler/condegen"
 	"js-compiler/lexer"
 	"js-compiler/parser"
 	"os"
@@ -28,4 +29,19 @@ func main() {
 	}
 
 	fmt.Println(program)
+
+	// code generationr
+	ir, err := codegen.CompileToLLVM(program)
+	if err != nil {
+		fmt.Errorf("code generation error: %v", err)
+		os.Exit(1)
+	}
+
+	irFile := "something.ll"
+	err = os.WriteFile(irFile, []byte(ir), 0664)
+	if err != nil {
+		fmt.Printf("Error writing IR file: %v\n", err)
+		os.Exit(1)
+	}
+
 }

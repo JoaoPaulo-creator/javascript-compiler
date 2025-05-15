@@ -52,10 +52,10 @@ func (es *ExpressionStatement) TokenLiteral() string { return es.Token.Literal }
 
 func (rs *ReturnStatement) String() string {
 	var out bytes.Buffer
-	out.WriteString(rs.TokenLiteral() + " ")
+	out.WriteString(" " + rs.TokenLiteral() + " ")
 	if rs.ReturnValue != nil {
 		out.WriteString(rs.ReturnValue.String())
-		out.WriteString(";")
+		out.WriteString("; ")
 	}
 
 	return out.String()
@@ -95,7 +95,7 @@ func (ls *LetStatement) String() string {
 		out.WriteString(ls.Value.String())
 	}
 
-	out.WriteString(";")
+	out.WriteString("; ")
 	return out.String()
 }
 
@@ -140,6 +140,22 @@ type PostfixExpression struct {
 	Left     Expression
 }
 
+type AssignmentExpression struct {
+	Token token.Token // the = token
+	Name  *Identifier
+	Value Expression
+}
+
+func (ae *AssignmentExpression) expressionNode()      {}
+func (ae *AssignmentExpression) TokenLiteral() string { return ae.Token.Literal }
+func (ae *AssignmentExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString(ae.Name.String())
+	out.WriteString(" = ")
+	out.WriteString(ae.Value.String())
+	return out.String()
+}
+
 func (ie *PostfixExpression) expressionNode()      {}
 func (ie *PostfixExpression) TokenLiteral() string { return ie.Token.Literal }
 func (ie *PostfixExpression) String() string {
@@ -161,11 +177,11 @@ func (ie *InfixExpression) TokenLiteral() string { return ie.Token.Literal }
 func (ie *InfixExpression) String() string {
 	var out bytes.Buffer
 
-	out.WriteString("(")
+	out.WriteString(" ")
 	out.WriteString(ie.Left.String())
 	out.WriteString(" " + ie.Operator + " ")
 	out.WriteString(ie.Right.String())
-	out.WriteString(")")
+	out.WriteString(" ")
 
 	return out.String()
 }
@@ -183,7 +199,10 @@ func (ie *IfExpression) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("if")
+	out.WriteString(" ")
+	out.WriteString("(")
 	out.WriteString(ie.Condition.String())
+	out.WriteString(")")
 	out.WriteString(" ")
 	out.WriteString("{")
 	out.WriteString(ie.Consequence.String())
@@ -247,7 +266,8 @@ func (fl *FunctionLiteral) String() string {
 	out.WriteString(") ")
 	out.WriteString("{")
 	out.WriteString(fl.Body.String())
-	out.WriteString("} ")
+	out.WriteString("}")
+	out.WriteString("\n")
 	return out.String()
 }
 
@@ -282,10 +302,15 @@ func (ws *WhileStatement) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("while")
+	out.WriteString(" ")
+	out.WriteString("(")
 	out.WriteString(ws.Condition.String())
+	out.WriteString(")")
+	out.WriteString(" ")
 	out.WriteString("{")
 	out.WriteString(ws.Body.String())
 	out.WriteString("}")
+	out.WriteString("\n")
 
 	return out.String()
 }
@@ -384,3 +409,11 @@ func (hl *HashLiteral) String() string {
 	out.WriteString("}")
 	return out.String()
 }
+
+type EmptyExpression struct {
+	Token token.Token
+}
+
+func (ee *EmptyExpression) expressionNode()      {}
+func (ee *EmptyExpression) TokenLiteral() string { return ee.Token.Literal }
+func (ee *EmptyExpression) String() string       { return "" }
