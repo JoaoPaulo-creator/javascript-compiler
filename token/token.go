@@ -45,6 +45,7 @@ const (
 	ELSE     = "ELSE"
 	WHILE    = "WHILE"
 	RETURN   = "RETURN"
+	PRINT    = "PRINT"
 )
 
 type Token struct {
@@ -56,6 +57,7 @@ var keywords = map[string]TokenType{
 	"function": FUNCTION,
 	"let":      LET,
 	"const":    CONST,
+	"print":    PRINT,
 	"if":       IF,
 	"else":     ELSE,
 	"while":    WHILE,

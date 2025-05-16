@@ -199,15 +199,15 @@ func (is *IfStatement) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("if")
-	out.WriteString(" ")
+	// out.WriteString(" ")
 	out.WriteString("(")
 	out.WriteString(is.Condition.String())
 	out.WriteString(")")
-	out.WriteString(" ")
+	// out.WriteString(" ")
 	out.WriteString("{")
 	out.WriteString(is.Consequence.String())
 	out.WriteString("}")
-	out.WriteString("\t")
+	// out.WriteString("\t")
 
 	if is.Alternative != nil {
 		out.WriteString("else ")
@@ -344,6 +344,44 @@ func (ws *WhileStatement) String() string {
 	out.WriteString(ws.Body.String())
 	out.WriteString("}")
 	out.WriteString("\n")
+
+	return out.String()
+}
+
+type ConsoleLogStatement struct {
+	Token token.Token // the PRINT token
+	Value Expression
+}
+
+func (cl *ConsoleLogStatement) statementNode()       {}
+func (cl *ConsoleLogStatement) TokenLiteral() string { return cl.Token.Literal }
+
+// TODO: aprender como utilizar console.log
+func (cl *ConsoleLogStatement) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(cl.TokenLiteral() + " ")
+	out.WriteString(cl.Value.String())
+	out.WriteString(";")
+
+	return out.String()
+}
+
+type PrintStatement struct {
+	Token token.Token // the PRINT token
+	Value Expression
+}
+
+func (ps *PrintStatement) statementNode()       {}
+func (ps *PrintStatement) TokenLiteral() string { return ps.Token.Literal }
+func (ps *PrintStatement) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(ps.TokenLiteral())
+	out.WriteString("(")
+	out.WriteString(ps.Value.String())
+	out.WriteString(")")
+	out.WriteString(";")
 
 	return out.String()
 }

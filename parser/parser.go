@@ -90,7 +90,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.TRUE, p.parseBoolean)
 	p.registerPrefix(token.FALSE, p.parseBoolean)
 	p.registerPrefix(token.LPAREN, p.parseGroupedExpression)
-	p.registerPrefix(token.IF, p.parseIfExpression)
+	// p.registerPrefix(token.IF, p.parseIfStatement)
 	p.registerPrefix(token.FUNCTION, p.parseFunctionLiteral)
 	p.registerPrefix(token.LBRACKET, p.parseArrayLiteral)
 	p.registerPrefix(token.LBRACE, p.parseHashLiteral)
@@ -167,9 +167,8 @@ func (p *Parser) parsePostfixExpression(left ast.Expression) ast.Expression {
 	return expression
 }
 
-func (p *Parser) parseIfExpression() ast.Expression {
-	// defer untrace(trace("parseInfixExpression"))
-	expression := &ast.IfExpression{
+func (p *Parser) parseIfStatement() *ast.IfStatement {
+	expression := &ast.IfStatement{
 		Token: p.curToken,
 	}
 
@@ -271,8 +270,12 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseLetStatement()
 	case token.CONST:
 		return p.parseConstStatement()
+	case token.IF:
+		return p.parseIfStatement()
 	case token.WHILE:
 		return p.parseWhileStatement()
+	case token.PRINT:
+		return p.parsePrintStatement()
 	case token.RETURN:
 		return p.parseReturnStatement()
 	default:
@@ -367,7 +370,18 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	return stmt
 }
 
-// faz o parse da declaracao let. no teste, pega-se o nome da variavel
+func (p *Parser) parsePrintStatement() *ast.PrintStatement {
+	stmt := &ast.PrintStatement{Token: p.curToken}
+	p.nextToken()
+	stmt.Value = p.parseExpression(LOWEST)
+
+	// if !p.peekTokenIs(token.LPAREN) {
+	// 	return nil
+	// }
+
+	return stmt
+}
+
 func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	stmt := &ast.ReturnStatement{Token: p.curToken}
 	p.nextToken()

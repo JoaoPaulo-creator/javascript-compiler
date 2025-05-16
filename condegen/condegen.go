@@ -178,19 +178,19 @@ func (g *Generator) generateStatement(stmt ast.Statement) (value.Value, error) {
 		return g.generateLetStatement(stmt)
 	// case *ast.ReturnStatement:
 	// 	return g.generateReturnStatement(stmt)
-	// case *ast.ExpressionStatement:
-	// 	if stmt.Expression == nil {
-	// 		return nil, fmt.Errorf("nil expression in expression statement")
-	// 	}
-	// 	return g.generateExpression(stmt.Expression)
+	case *ast.ExpressionStatement:
+		if stmt.Expression == nil {
+			return nil, fmt.Errorf("nil expression in expression statement")
+		}
+		return g.generateExpression(stmt.Expression)
 	case *ast.BlockStatement:
 		return g.generateBlockStatement(stmt)
 	case *ast.IfStatement:
 		return g.generateIfStatement(stmt)
 	case *ast.WhileStatement:
 		return g.generateWhileStatement(stmt)
-	// case *ast.PrintStatement:
-	// 	return g.generatePrintStatement(stmt)
+	case *ast.PrintStatement:
+		return g.generatePrintStatement(stmt)
 	default:
 		return nil, fmt.Errorf("unknown statement type: %T", stmt)
 	}
@@ -466,6 +466,61 @@ func (g *Generator) generateIfStatement(stmt *ast.IfStatement) (value.Value, err
 	}
 
 	return nil, nil
+}
+
+func (g *Generator) generatePrintStatement(stmt *ast.PrintStatement) (value.Value, error) {
+	fn := g.context.currentFunction
+	if fn == nil {
+		return nil, fmt.Errorf("generatePrintStatement: no current function\n")
+	}
+
+	blocks := fn.Blocks
+	if len(blocks) == 0 {
+		entry := fn.NewBlock("entry")
+		g.context.blocks["entry"] = entry
+	}
+
+	current := blocks[len(blocks)-1]
+	val, err := g.generateExpression(stmt.Value)
+	if err != nil {
+		return nil, fmt.Errorf("generatePrintStatement: %w", err)
+	}
+
+	// Choose format string and possibly adjust value
+	var formatStr string
+	var arg value.Value
+
+	switch t := val.Type().(type) {
+	case *types.IntType:
+		if t.Equal(types.I1) {
+			formatStr = "%d\n"
+			arg = current.NewZExt(val, types.I32)
+		} else if t.Equal(types.I32) {
+			formatStr = "%d\n"
+			arg = val
+		} else {
+			return nil, fmt.Errorf("generatePrintStatement: unsupported int type %s", t)
+		}
+	case *types.PointerType:
+		if ptr, ok := t.ElemType.(*types.IntType); ok && ptr.Equal(types.I8) {
+			formatStr = "%s\n"
+			arg = val
+		} else {
+			return nil, fmt.Errorf("generatePrintStatement: unsupported pointer type %s", t)
+		}
+
+	default:
+		return nil, fmt.Errorf("generatePrintStatement: unsupported type %s", val.Type())
+	}
+
+	fmtConst := g.getStringConstant(formatStr)
+
+	// And finally emit the call to the variadic printf we declared in New()
+	// Note: g.printfFunc was declared once as `i32 @printf(i8*, ...)`
+	fmt.Printf("debugging printfFunc: %T", g.consoleLog)
+	call := current.NewCall(g.consoleLog, fmtConst, arg)
+
+	return call, nil
 }
 
 func (g *Generator) generateWhileStatement(stmt *ast.WhileStatement) (value.Value, error) {
