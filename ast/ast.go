@@ -186,6 +186,38 @@ func (ie *InfixExpression) String() string {
 	return out.String()
 }
 
+type IfStatement struct {
+	Token       token.Token // the IF token
+	Condition   Expression
+	Consequence *BlockStatement
+	Alternative *BlockStatement
+}
+
+func (is *IfStatement) statementNode()       {}
+func (is *IfStatement) TokenLiteral() string { return is.Token.Literal }
+func (is *IfStatement) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("if")
+	out.WriteString(" ")
+	out.WriteString("(")
+	out.WriteString(is.Condition.String())
+	out.WriteString(")")
+	out.WriteString(" ")
+	out.WriteString("{")
+	out.WriteString(is.Consequence.String())
+	out.WriteString("}")
+	out.WriteString("\t")
+
+	if is.Alternative != nil {
+		out.WriteString("else ")
+		out.WriteString("{")
+		out.WriteString(is.Alternative.String() + "\n")
+		out.WriteString("}")
+	}
+	return out.String()
+}
+
 type IfExpression struct {
 	Token       token.Token
 	Condition   Expression
@@ -207,6 +239,7 @@ func (ie *IfExpression) String() string {
 	out.WriteString("{")
 	out.WriteString(ie.Consequence.String())
 	out.WriteString("}")
+	out.WriteString("\t")
 
 	if ie.Alternative != nil {
 		out.WriteString("else ")

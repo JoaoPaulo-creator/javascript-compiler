@@ -2,22 +2,23 @@ package codegen
 
 import (
 	"fmt"
+	"js-compiler/ast"
+	"os"
+	"regexp"
+	"strings"
+
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
 	"github.com/llir/llvm/ir/enum"
 	"github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
-	"js-compiler/ast"
-	"os"
-	"regexp"
-	"strings"
 )
 
 type Generator struct {
 	module        *ir.Module
 	context       *Context
 	stringCounter int
-	blockCount    int
+	blockCounter  int
 	consoleLog    *ir.Func
 }
 
@@ -45,7 +46,7 @@ func New() *Generator {
 		module:        module,
 		context:       context,
 		stringCounter: 0,
-		blockCount:    0,
+		blockCounter:  0,
 		consoleLog:    printFunc,
 	}
 }
@@ -182,12 +183,12 @@ func (g *Generator) generateStatement(stmt ast.Statement) (value.Value, error) {
 	// 		return nil, fmt.Errorf("nil expression in expression statement")
 	// 	}
 	// 	return g.generateExpression(stmt.Expression)
-	// case *ast.BlockStatement:
-	// 	return g.generateBlockStatement(stmt)
-	// case *ast.IfExpression:
-	// 	return g.generateIfStatement(stmt)
-	// case *ast.WhileStatement:
-	// 	return g.generateWhileStatement(stmt)
+	case *ast.BlockStatement:
+		return g.generateBlockStatement(stmt)
+	case *ast.IfStatement:
+		return g.generateIfStatement(stmt)
+	case *ast.WhileStatement:
+		return g.generateWhileStatement(stmt)
 	// case *ast.PrintStatement:
 	// 	return g.generatePrintStatement(stmt)
 	default:
@@ -257,6 +258,31 @@ func (g *Generator) generateLetStatement(stmt *ast.LetStatement) (value.Value, e
 	return allocaInst, nil
 }
 
+func (g *Generator) generateBlockStatement(stmt *ast.BlockStatement) (value.Value, error) {
+	oldContext := g.context
+	newContext := newContext(oldContext)
+	newContext.currentFunction = oldContext.currentFunction
+	g.context = newContext
+
+	if g.context.currentFunction == nil {
+		fmt.Fprintf(os.Stderr, "WARNING: no current function when generating block statement\n")
+	}
+
+	var lastVal value.Value
+	for i, s := range stmt.Statements {
+		val, err := g.generateStatement(s)
+		if err != nil {
+			g.context = oldContext
+			return nil, fmt.Errorf("error in block statement %d: %w", i, err)
+		}
+
+		lastVal = val
+	}
+
+	g.context = oldContext
+	return lastVal, nil
+}
+
 func (g *Generator) generateExpression(expr ast.Expression) (value.Value, error) {
 	g.debugExpression(expr)
 	if expr == nil {
@@ -270,12 +296,12 @@ func (g *Generator) generateExpression(expr ast.Expression) (value.Value, error)
 		return g.generateIntegerLiteral(expr)
 	case *ast.StringLiteral:
 		return g.generateStringLiteral(expr)
-	// case *ast.PrefixExpression:
-	// 	return g.generatePrefixExpression(expr)
-	// case *ast.InfixExpression:
-	// 	return g.generateInfixExpression(expr)
-	// case *ast.FunctionLiteral:
-	// 	return g.generateFunctionLiteral(expr)
+	case *ast.PrefixExpression:
+		return g.generatePrefixExpression(expr)
+	case *ast.InfixExpression:
+		return g.generateInfixExpression(expr)
+	case *ast.FunctionLiteral:
+		return g.generateFunctionLiteral(expr)
 	// case *ast.CallExpression:
 	// 	return g.generateCallExpression(expr)
 	// case *ast.Boolean:
@@ -287,6 +313,198 @@ func (g *Generator) generateExpression(expr ast.Expression) (value.Value, error)
 	default:
 		return nil, fmt.Errorf("unknown expression type: %T", expr)
 	}
+}
+
+func (g *Generator) generateFunctionLiteral(expr *ast.FunctionLiteral) (value.Value, error) {
+	oldContext := g.context
+	newContext := newContext(oldContext)
+	for name, val := range oldContext.namedValues {
+		newContext.namedValues[name] = val
+	}
+	g.context = newContext
+
+	funcName := expr.Name.String()
+	if string(funcName) == "" {
+		funcName = fmt.Sprintf("anon.%d", g.blockCounter)
+		g.blockCounter++
+	}
+
+	paramTypes := make([]types.Type, len(expr.Parameters))
+	for i := range paramTypes {
+		paramTypes[i] = types.I32
+	}
+
+	funcType := types.NewFunc(types.I32, paramTypes...)
+	fn := g.module.NewFunc(funcName, funcType)
+	newContext.namedValues[funcName] = fn
+	g.context.currentFunction = fn
+
+	entryBlock := fn.NewBlock("entry")
+	g.context.blocks["entry"] = entryBlock
+
+	for i, p := range fn.Params {
+		if i < len(expr.Parameters) {
+			p.SetName(expr.Parameters[i].Value)
+		}
+	}
+
+	for i, param := range expr.Parameters {
+		paramAlloca := entryBlock.NewAlloca(types.I32)
+		paramAlloca.SetName(param.Value + ".addr") // fix the multiple definition of local value named 'n' error %n = alloca i32
+
+		if i < len(fn.Params) {
+			entryBlock.NewStore(fn.Params[i], paramAlloca)
+		} else {
+			defaultValue := constant.NewInt(types.I32, 0)
+			entryBlock.NewStore(defaultValue, paramAlloca)
+		}
+		g.context.namedValues[param.Value] = paramAlloca
+	}
+
+	bodyVal, err := g.generateStatement(expr.Body)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error generating body for function %s: %v\n", funcName, err)
+		g.context = oldContext
+		return nil, err
+	}
+
+	if len(fn.Blocks) > 0 {
+		lastBlock := fn.Blocks[len(fn.Blocks)-1]
+		if lastBlock.Term == nil {
+			if bodyVal != nil {
+				// Ensure the return value is an integer
+				if !bodyVal.Type().Equal(types.I32) {
+					if bodyVal.Type().Equal(types.I1) {
+						bodyVal = lastBlock.NewZExt(bodyVal, types.I32)
+					} else {
+						bodyVal = constant.NewInt(types.I32, 0)
+					}
+				}
+				lastBlock.NewRet(bodyVal)
+			} else {
+				lastBlock.NewRet(constant.NewInt(types.I32, 0))
+			}
+		}
+	} else {
+		entryBlock.NewRet(constant.NewInt(types.I32, 0))
+	}
+
+	g.context = oldContext
+	return fn, nil
+}
+
+func (g *Generator) generateIfStatement(stmt *ast.IfStatement) (value.Value, error) {
+	if g.context.currentFunction == nil {
+		fmt.Fprintf(os.Stderr, "ERROR: No current function when generating if statement\n")
+		return constant.NewInt(types.I32, 0), nil
+	}
+
+	fn := g.context.currentFunction
+
+	condVal, err := g.generateExpression(stmt.Condition)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: Failed to generate condition for if statement: %v\n", err)
+		return nil, err
+	}
+
+	if len(fn.Blocks) == 0 {
+		fmt.Fprintf(os.Stderr, "ERROR: Function has no blocks when generating if statement\n")
+		entryBlock := fn.NewBlock("entry")
+		g.context.blocks["entry"] = entryBlock
+	}
+
+	currentBlock := fn.Blocks[len(fn.Blocks)-1]
+
+	thenBlock := fn.NewBlock(fmt.Sprintf("if.then.%d", g.blockCounter))
+	g.blockCounter++
+	mergeBlock := fn.NewBlock(fmt.Sprintf("if.merge.%d", g.blockCounter))
+	g.blockCounter++
+
+	var elseBlock *ir.Block
+	if stmt.Alternative != nil {
+		elseBlock = fn.NewBlock(fmt.Sprintf("if.else.%d", g.blockCounter))
+		g.blockCounter++
+	} else {
+		elseBlock = mergeBlock
+	}
+
+	var condBool value.Value
+	if condVal.Type().Equal(types.I1) {
+		condBool = condVal
+	} else {
+		intType, ok := condVal.Type().(*types.IntType)
+		if !ok {
+			return nil, fmt.Errorf("expected int type for condition, got %T", condVal.Type())
+		}
+		condBool = currentBlock.NewICmp(enum.IPredNE, condVal, constant.NewInt(intType, 0))
+	}
+
+	currentBlock.NewCondBr(condBool, thenBlock, elseBlock)
+
+	g.context.currentFunction = fn
+	_, err = g.generateStatement(stmt.Consequence)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: Failed to generate then block: %v\n", err)
+		return nil, err
+	}
+
+	if len(thenBlock.Insts) == 0 || thenBlock.Term == nil {
+		thenBlock.NewBr(mergeBlock)
+	}
+
+	if stmt.Alternative != nil {
+		g.context.currentFunction = fn
+		_, err = g.generateStatement(stmt.Alternative)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR: Failed to generate else block: %v\n", err)
+			return nil, err
+		}
+
+		if len(elseBlock.Insts) == 0 || elseBlock.Term == nil {
+			elseBlock.NewBr(mergeBlock)
+		}
+	}
+
+	return nil, nil
+}
+
+func (g *Generator) generateWhileStatement(stmt *ast.WhileStatement) (value.Value, error) {
+	fn := g.context.currentFunction
+	currentBlock := fn.Blocks[len(fn.Blocks)-1]
+
+	condBlock := fn.NewBlock(fmt.Sprintf("while.cond.%d", g.blockCounter))
+	g.blockCounter++
+	bodyBlock := fn.NewBlock(fmt.Sprintf("while.body.%d", g.blockCounter))
+	g.blockCounter++
+	endBlock := fn.NewBlock(fmt.Sprintf("while.end.%d", g.blockCounter))
+	g.blockCounter++
+
+	currentBlock.NewBr(condBlock)
+
+	condVal, err := g.generateExpression(stmt.Condition)
+	if err != nil {
+		return nil, err
+	}
+
+	var condBool value.Value
+	if condVal.Type().Equal(types.I1) {
+		condBool = condVal
+	} else {
+		intType, ok := condVal.Type().(*types.IntType)
+		if !ok {
+			return nil, fmt.Errorf("expected int type for condition, got %T", condVal.Type())
+		}
+		condBool = condBlock.NewICmp(enum.IPredNE, condVal, constant.NewInt(intType, 0))
+	}
+
+	condBlock.NewCondBr(condBool, bodyBlock, endBlock)
+	g.generateStatement(stmt.Body)
+
+	if len(bodyBlock.Insts) == 0 || bodyBlock.Term == nil {
+		bodyBlock.NewBr(condBlock)
+	}
+
+	return nil, nil
 }
 
 func (g *Generator) generateIdentifier(expr *ast.Identifier) (value.Value, error) {
@@ -336,6 +554,116 @@ func (g *Generator) generateIntegerLiteral(expr *ast.IntegerLiteral) (value.Valu
 
 func (g *Generator) generateStringLiteral(expr *ast.StringLiteral) (value.Value, error) {
 	return g.getStringConstant(expr.Value), nil
+}
+
+func (g *Generator) generatePrefixExpression(expr *ast.PrefixExpression) (value.Value, error) {
+	right, err := g.generateExpression(expr.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	currentBlock := g.context.currentFunction.Blocks[len(g.context.currentFunction.Blocks)-1]
+
+	switch expr.Operator {
+	case "!":
+		var boolVal value.Value
+		if right.Type().Equal(types.I1) {
+			boolVal = right
+		} else {
+			intType, ok := right.Type().(*types.IntType)
+			if !ok {
+				return nil, fmt.Errorf("expected int type for ! operator, got %T", right.Type())
+			}
+
+			boolVal = currentBlock.NewICmp(enum.IPredNE, right, constant.NewInt(intType, 0))
+		}
+
+		return currentBlock.NewXor(boolVal, constant.NewInt(types.I1, 1)), nil
+	case "-":
+		intType, ok := right.Type().(*types.IntType)
+		if !ok {
+			return nil, fmt.Errorf("expected int type for - operator, got %T", right.Type())
+		}
+		return currentBlock.NewSub(constant.NewInt(intType, 0), right), nil
+	default:
+		return nil, fmt.Errorf("unknown prefix operator: %s", expr.Operator)
+	}
+}
+
+func (g *Generator) generateInfixExpression(expr *ast.InfixExpression) (value.Value, error) {
+	left, err := g.generateExpression(expr.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	if left == nil {
+		fmt.Fprintf(os.Stderr, "WARNING: Left expression evaluated to nil in infix expression\n")
+		return constant.NewInt(types.I32, 0), nil
+	}
+
+	right, err := g.generateExpression(expr.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	if right == nil {
+		fmt.Fprintf(os.Stderr, "WARNING: Right expression evaluated to nil in infix expression\n")
+		return constant.NewInt(types.I32, 0), nil
+	}
+
+	if g.context.currentFunction == nil || len(g.context.currentFunction.Blocks) == 0 {
+		fmt.Fprintf(os.Stderr, "WARNING: No current function or blocks when generating infix expression\n")
+		return constant.NewInt(types.I32, 0), nil
+	}
+
+	currentBlock := g.context.currentFunction.Blocks[len(g.context.currentFunction.Blocks)-1]
+
+	// Ensure both operands are integers
+	leftInt := left
+	rightInt := right
+
+	if !left.Type().Equal(types.I32) {
+		if left.Type().Equal(types.I1) {
+			leftInt = currentBlock.NewZExt(left, types.I32)
+		} else {
+			return nil, fmt.Errorf("unsupported type for left operand: %s", left.Type())
+		}
+	}
+
+	if !right.Type().Equal(types.I32) {
+		if right.Type().Equal(types.I1) {
+			rightInt = currentBlock.NewZExt(right, types.I32)
+		} else {
+			return nil, fmt.Errorf("unsupported type for right operand: %s", right.Type())
+		}
+	}
+
+	switch expr.Operator {
+	case "+":
+		return currentBlock.NewAdd(leftInt, rightInt), nil
+	case "-":
+		return currentBlock.NewSub(leftInt, rightInt), nil
+	case "*":
+		return currentBlock.NewMul(leftInt, rightInt), nil
+	case "/":
+		return currentBlock.NewSDiv(leftInt, rightInt), nil
+	case "%":
+		return currentBlock.NewSRem(leftInt, rightInt), nil
+	case "<":
+		return currentBlock.NewICmp(enum.IPredSLT, leftInt, rightInt), nil
+	case ">":
+		return currentBlock.NewICmp(enum.IPredSGT, leftInt, rightInt), nil
+	case "<=":
+		return currentBlock.NewICmp(enum.IPredSLE, leftInt, rightInt), nil
+	case ">=":
+		return currentBlock.NewICmp(enum.IPredSGE, leftInt, rightInt), nil
+	case "==":
+		return currentBlock.NewICmp(enum.IPredEQ, leftInt, rightInt), nil
+	case "!=":
+		return currentBlock.NewICmp(enum.IPredNE, leftInt, rightInt), nil
+	default:
+		return nil, fmt.Errorf("unknown infix operator: %s", expr.Operator)
+	}
 }
 
 func (g *Generator) getStringConstant(str string) value.Value {

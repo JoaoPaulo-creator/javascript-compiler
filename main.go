@@ -37,7 +37,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	irFile := "something.ll"
+	irFile := "output.ll"
 	err = os.WriteFile(irFile, []byte(ir), 0664)
 	if err != nil {
 		fmt.Printf("Error writing IR file: %v\n", err)
