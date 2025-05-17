@@ -176,8 +176,8 @@ func (g *Generator) generateStatement(stmt ast.Statement) (value.Value, error) {
 	switch stmt := stmt.(type) {
 	case *ast.LetStatement:
 		return g.generateLetStatement(stmt)
-	// case *ast.ReturnStatement:
-	// 	return g.generateReturnStatement(stmt)
+	case *ast.ReturnStatement:
+		return g.generateReturnStatement(stmt)
 	case *ast.ExpressionStatement:
 		if stmt.Expression == nil {
 			return nil, fmt.Errorf("nil expression in expression statement")
@@ -281,6 +281,18 @@ func (g *Generator) generateBlockStatement(stmt *ast.BlockStatement) (value.Valu
 
 	g.context = oldContext
 	return lastVal, nil
+}
+
+func (g *Generator) generateReturnStatement(stmt *ast.ReturnStatement) (value.Value, error) {
+	val, err := g.generateExpression(stmt.ReturnValue)
+	if err != nil {
+		return nil, err
+	}
+
+	currentBlock := g.context.currentFunction.Blocks[len(g.context.currentFunction.Blocks)-1]
+	currentBlock.NewRet(val)
+
+	return val, nil
 }
 
 func (g *Generator) generateExpression(expr ast.Expression) (value.Value, error) {
