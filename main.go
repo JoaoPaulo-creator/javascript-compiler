@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	codegen "js-compiler/condegen"
+	"js-compiler/codegen"
 	"js-compiler/lexer"
 	"js-compiler/parser"
 	"os"

@@ -1,9 +1,9 @@
-let a = "asdkjf"
+let a = "isso eh uma string"
 let b = !false
 let c = -2
 
-print("function: ")
-function myFunct() {
-        return "test"
-}
+print("some string")
+print(a)
+print(b)
+print(c)
 
