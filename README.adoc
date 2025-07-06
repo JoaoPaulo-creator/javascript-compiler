@@ -1,0 +1,6 @@
+== JS compiler 
+This is just a toy compiler for javascript that compiles to LLVM IR
+
+Tech used:
+
+* Inkwell
